@@ -1,0 +1,225 @@
+package il.ac.hit.controller;
+
+import il.ac.hit.model.IProductsDAO;
+import il.ac.hit.model.Product;
+import il.ac.hit.model.ProductsDAO;
+import il.ac.hit.model.ProductsManagementException;
+import il.ac.hit.model.User;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.LinkedList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+/**
+ * being accessed through the routerServlet
+ * controller for all user actions */
+public class UserController extends BasicController {
+
+	//constructor	
+    public UserController(IProductsDAO dao) {
+        super(dao);
+    }
+   
+    //login function -checking for a user match in the DB
+    public User login(HttpServletRequest request, HttpServletResponse response) throws ServletException {
+		try {
+			//getting necessary  fields
+			PrintWriter out = response.getWriter();
+	        String userName = request.getParameter("name");
+	        String userPassword = request.getParameter("password");
+	        //checking fields
+	        if(userName!=null && userPassword!=null) {
+	            try {
+	        		ProductsDAO dao = ProductsDAO.getInstance();
+	                try {
+	                	User u = new User();
+	                	//login func. from the ProductsDAO
+	                	u = dao.login(userName, userPassword);	        			
+	                	return u;
+
+	                } catch (ProductsManagementException e) {
+	                    e.getMessage();
+	                }
+	            } catch(NumberFormatException e) {
+	                out.println("<br/>Problem with converting" + e.getMessage());
+	            }
+	        } else {
+	        	
+	        }
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		return null;
+    }
+   
+    //logout function - close the session http request.
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+    	HttpSession session = request.getSession(false);
+    	session.invalidate();
+    }
+    
+    //sign up function - enter new user to users table in the DB.
+	public void signup(HttpServletRequest request, HttpServletResponse response) throws ProductsManagementException {
+		try {
+			//getting necessary fields.
+			PrintWriter out = response.getWriter();
+	        String userName = request.getParameter("name");
+	        String userPassword = request.getParameter("password");
+	        //checking fields.
+	        if(userName!=null && userPassword!=null) {
+	            try {
+	                User u = new User(userName, userPassword);
+	        		ProductsDAO dao = ProductsDAO.getInstance();
+	                try {
+	                	//calling sign up method from ProductsDAO.
+	                    dao.signUp(u);
+	                } catch (ProductsManagementException e) {
+	                    e.getMessage();
+	                }
+	            } catch(NumberFormatException e) {
+	                out.println("<br/>Problem with converting a string to double " + e.getMessage());
+	            }
+	        }
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+    }
+   
+	//add cost item function - adds producst to products table in the DB. 
+    public void addcostitem(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			//getting necessary fields.
+			PrintWriter out = response.getWriter();
+	        String category = request.getParameter("category");
+	        String title = request.getParameter("title");
+	        String description = request.getParameter("description");
+	        String priceString = request.getParameter("price");
+	        
+	        //checking fields.
+	        if(category != "" && title != "" && description != "" && priceString != "") {
+		        int price = Integer.parseInt(priceString);
+	            try {
+	        		ProductsDAO dao = ProductsDAO.getInstance();
+	                try {
+	                	
+	                	String userName = "NAME";
+	                	HttpSession session = request.getSession();
+	                	userName = (String) session.getAttribute("username");
+	                	
+	                	Product p = new Product(category, title, description, price, userName);
+	                	//calling add product func. from ProductsDAO.
+	                	dao.addProduct(p);
+	                	
+	                } catch (ProductsManagementException e) {
+	                    e.getMessage();
+	                }
+	            } catch(NumberFormatException e) {
+	                out.println("<br/>Problem with converting" + e.getMessage());
+	            }	        		
+	        }
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+    }
+    
+	//get cost item function - get all products from products table in the DB.
+    public void getcostitems(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			PrintWriter out = response.getWriter();
+			
+            try {
+        		ProductsDAO dao = ProductsDAO.getInstance();
+                try {
+                	
+                	HttpSession session = request.getSession();
+                	String userName = null;
+                	userName = (String) session.getAttribute("username");
+
+                	
+                	if(userName != null) {                		
+                    	//calling the get products method from ProductsDAO.
+                        List<Product> products = dao.getProducts();
+                        List<Product> filterProducts = new LinkedList();
+                        
+                         for(Product p : products) {
+                        	if(p.getUserName().equals(userName)) {
+                        		filterProducts.add(p);
+                        	}
+                        }
+                        
+                        //for displaying products in the getcostitems.jsp file
+                         session.setAttribute("products", filterProducts);
+                	} else {
+                		throw new ProductsManagementException("no products in this user.");
+                		//sand massage that no products in this user.
+                	}
+                } catch (ProductsManagementException e) {
+                    e.getMessage();
+                }
+            } catch(NumberFormatException e) {
+                out.println("<br/>Problem with converting" + e.getMessage());
+            }
+
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+    }
+   
+    //get cost per month function - get all products that were added in the same month, from the products table
+    public void getcostpermonth(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			//getting necessary fields.
+			PrintWriter out = response.getWriter();
+	        String month = request.getParameter("month");
+	        
+	        if(month != null) {
+	            try {
+	        		ProductsDAO dao = ProductsDAO.getInstance();
+	                try {
+	                	
+	                	HttpSession session = request.getSession();
+	                	String userName = null;
+	                	userName = (String) session.getAttribute("username");
+	                	
+	                	if(userName != null) {
+	                		
+	                    	List<Product> productsFilter = new LinkedList();
+	                    	
+	                    	//calling get products method from the ProductsDAO.
+	                        List<Product> products = dao.getProducts();
+	                        
+//							//getting matching products and adding to productsFiters list, for displaying in getcostpermonth.jsp.
+	            	        int monthItem =Integer.parseInt(month);
+	                        for(Product p : products) {
+	                        	if(p.getMonth() + 1 == monthItem && p.getUserName().equals(userName)) {
+	                        		productsFilter.add(p);
+	                        	}
+	                        }
+
+	                        session.setAttribute("products", productsFilter);
+	                		
+	                	} else {
+	                		throw new ProductsManagementException("no products in this user.");
+	                		//sand massage that no products in this user.
+	                	}
+	                } catch (ProductsManagementException e) {
+	                    e.getMessage();
+	                }
+	            } catch(NumberFormatException e) {
+	                out.println("<br/>Problem with converting" + e.getMessage());
+	            }
+	        	
+	        }
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+    }
+}
